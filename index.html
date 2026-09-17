@@ -182,7 +182,6 @@ const FORMAL = {
     {id:'fr6_', name:'非本家六星超额扣分', desc:'总和超过4个，每多1个', unit:-50},
     {id:'fr7_', name:'非本家六星不足加分', desc:'总和少于4个，每少1个', unit:50},
     {id:'fr8_', name:'交换“探测先锋”扣分', desc:'在“失与得”交换【探测先锋】', check:-100},
-    {id:'fr9_', name:'商店超支扣分', desc:'超出部分每源石锭扣10倍分', unit:-10},
   ],
 };
 
@@ -273,8 +272,17 @@ function baseSectionHTML(){
         <div class="fname">通关时长（分钟）<small>自动算时长加减分</small></div>
         <input type="number" id="duration" value="" placeholder="0" oninput="compute()">
       </div>
+      <div class="field">
+        <div class="fname">初始源石锭</div>
+        <input type="number" id="initialIngot" value="" placeholder="0" oninput="compute()">
+      </div>
+      <div class="field">
+        <div class="fname">最终源石锭<small>与初始相减，超100自动扣分</small></div>
+        <input type="number" id="finalIngot" value="" placeholder="0" oninput="compute()">
+      </div>
       <div class="base-result" id="baseResult"></div>
       <div class="time-note" id="timeNote"></div>
+      <div class="time-note" id="ingotNote"></div>
     `;
   } else {
     h += `
@@ -426,6 +434,23 @@ function timeScore(){
   return {val, note};
 }
 
+function ingotScore(){
+  if(MODE !== 'formal') return {val:0, note:''};
+  const ini = parseFloat(document.getElementById('initialIngot')?.value);
+  const fin = parseFloat(document.getElementById('finalIngot')?.value);
+  if(isNaN(ini) || isNaN(fin)) return {val:0, note:'（未填初始/最终源石锭）'};
+  const diff = ini - fin;
+  if(diff < 0){
+    return {val:0, note:`源石锭净增 ${-diff}（最终＞初始），不涉及超支扣分`};
+  }
+  if(diff > 100){
+    const over = diff - 100;
+    const val = -over * 10;
+    return {val, note:`源石锭消耗 ${diff}，超出100上限 ${over} 锭 → 扣分 <b>${val}</b>`};
+  }
+  return {val:0, note:`源石锭消耗 ${diff}，未超过100，不扣分`};
+}
+
 function difficultyBonus(){
   if(MODE === 'fun') return 290;
   const sel = document.getElementById('difficulty');
@@ -446,8 +471,10 @@ function compute(){
 
   const bs = baseScore();
   const ts = timeScore();
+  const ig = ingotScore();
   sum += (bs.ok ? bs.val : 0);
   sum += ts.val;
+  sum += ig.val;
   sum += difficultyBonus();
 
   document.getElementById('totalScore').textContent = fmt(sum);
@@ -460,6 +487,8 @@ function compute(){
   }
   const tn = document.getElementById('timeNote');
   if(tn) tn.innerHTML = ts.note;
+  const ign = document.getElementById('ingotNote');
+  if(ign) ign.innerHTML = ig.note;
   return sum;
 }
 
@@ -518,6 +547,8 @@ function collectBreakdown(){
 
   const ts = timeScore();
   if(ts.val !== 0) lines.push(`时长加减分：${ts.val>0?'+':''}${ts.val}`);
+  const ig = ingotScore();
+  if(ig.val !== 0) lines.push(`源石锭超支扣分：${ig.val}`);
 
   const total = compute();
   lines.push(`—— 总分：${fmt(total)} ——`);
