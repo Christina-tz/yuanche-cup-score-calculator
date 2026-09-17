@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>昨夜圆车杯 #1 积分计算器</title>
+<style>
+  :root{
+    --bg:#0f1420; --card:#1a2233; --card2:#212c42; --line:#2c3a55;
+    --txt:#e8edf7; --sub:#9aa7bf; --acc:#ffb13d; --acc2:#4da3ff;
+    --good:#35c46b; --bad:#ff5d6c; --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--txt); line-height:1.5; padding-bottom:60px;
+  }
+  .wrap{max-width:720px; margin:0 auto; padding:0 12px;}
+
+  /* Sticky header */
+  .head{
+    position:sticky; top:0; z-index:10; background:rgba(15,20,32,.92); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line); padding:10px 12px;
+  }
+  .head-inner{max-width:720px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .head h1{font-size:17px; margin:0; white-space:nowrap;}
+  .head .total-box{text-align:right;}
+  .head .total-box .lbl{font-size:11px; color:var(--sub);}
+  .head .total-box .num{font-size:26px; font-weight:800; color:var(--acc); line-height:1;}
+
+  /* Tabs */
+  .tabs{display:flex; gap:8px; margin:14px 0 4px;}
+  .tabs button{
+    flex:1; padding:12px; font-size:15px; font-weight:700; border-radius:12px; cursor:pointer;
+    background:var(--card); color:var(--sub); border:1px solid var(--line); transition:.15s;
+  }
+  .tabs button.active{background:var(--acc); color:#1a1206; border-color:var(--acc);}
+
+  section.card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    margin:14px 0; padding:14px; overflow:hidden;
+  }
+  section.card h2{
+    font-size:14px; margin:0 0 12px; color:var(--acc2); font-weight:700;
+    display:flex; align-items:center; gap:8px;
+  }
+  section.card h2::before{content:""; width:4px; height:16px; background:var(--acc2); border-radius:2px;}
+
+  /* Base info fields */
+  .field{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line);}
+  .field:last-child{border-bottom:none;}
+  .field .fname{flex:1; font-size:14px;}
+  .field .fname small{display:block; color:var(--sub); font-size:12px;}
+  .field input[type=number], .field input[type=text], .field select{
+    width:120px; padding:9px 10px; font-size:15px; border-radius:9px;
+    background:var(--card2); color:var(--txt); border:1px solid var(--line); text-align:center;
+  }
+  .field input[type=text]{width:160px; text-align:left;}
+  .field select{width:140px;}
+  input:focus, select:focus{outline:none; border-color:var(--acc2);}
+
+  .base-result{
+    margin-top:12px; padding:12px; background:var(--card2); border-radius:10px; font-size:14px;
+  }
+  .base-result .big{font-size:22px; font-weight:800; color:var(--acc);}
+
+  /* Items */
+  .item{
+    display:flex; align-items:center; gap:10px; padding:9px 4px; border-bottom:1px solid rgba(44,58,85,.6);
+  }
+  .item:last-child{border-bottom:none;}
+  .item .info{flex:1; min-width:0;}
+  .item .iname{font-size:14px;}
+  .item .iname .deduct{color:var(--bad); font-size:12px; margin-left:6px;}
+  .item .idesc{font-size:12px; color:var(--sub);}
+  .item .pts{font-size:13px; font-weight:700; color:var(--good); white-space:nowrap;}
+  .item .pts.neg{color:var(--bad);}
+
+  /* checkbox */
+  .item input[type=checkbox]{
+    width:22px; height:22px; accent-color:var(--acc); flex-shrink:0; cursor:pointer;
+  }
+
+  /* stepper */
+  .stepper{display:flex; align-items:center; gap:6px; flex-shrink:0;}
+  .stepper button{
+    width:32px; height:32px; font-size:18px; line-height:1; border-radius:8px; cursor:pointer;
+    background:var(--card2); color:var(--txt); border:1px solid var(--line);
+  }
+  .stepper button:active{background:#2c3a55;}
+  .stepper input[type=number]{
+    width:52px; padding:6px 4px; font-size:15px; text-align:center; border-radius:8px;
+    background:var(--card2); color:var(--txt); border:1px solid var(--line);
+  }
+  .stepper .unit{font-size:13px; color:var(--sub); white-space:nowrap;}
+
+  /* time result */
+  .time-note{font-size:12px; color:var(--sub); margin-top:6px;}
+  .time-note b{color:var(--txt);}
+
+  /* footer buttons */
+  .actions{display:flex; gap:10px; margin:18px 0;}
+  .actions button{
+    flex:1; padding:13px; font-size:15px; font-weight:700; border-radius:12px; cursor:pointer; border:none;
+  }
+  .btn-copy{background:var(--acc2); color:#fff;}
+  .btn-reset{background:var(--card2); color:var(--sub); border:1px solid var(--line)!important;}
+
+  .hint{font-size:12px; color:var(--sub); text-align:center; margin-top:8px;}
+</style>
+</head>
+<body>
+<div class="head">
+  <div class="head-inner">
+    <h1>昨夜圆车杯 #1</h1>
+    <div class="total-box">
+      <div class="lbl">总分合计</div>
+      <div class="num" id="totalScore">0</div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="tabs">
+    <button id="tabFormal" class="active" onclick="switchMode('formal')">正式模式</button>
+    <button id="tabFun" onclick="switchMode('fun')">娱乐模式</button>
+  </div>
+
+  <!-- 基础信息 -->
+  <section class="card" id="baseSection"></section>
+
+  <!-- 计分项容器 -->
+  <div id="items"></div>
+
+  <div class="actions">
+    <button class="btn-copy" onclick="copyResult()">复制结果</button>
+    <button class="btn-reset" onclick="resetAll()">重置</button>
+  </div>
+  <div class="hint">分数实时自动计算 · 手机/电脑均可使用 · 双击本文件即可打开</div>
+</div>
+
+<script>
+let MODE = 'formal';
+
+// ===== 计分项数据 =====
+const FORMAL = {
+  base: null,
+  operators: [
+    {id:'f6', name:'临时招募六星干员', desc:'每招募1名', unit:50},
+    {id:'f5', name:'临时招募五星干员', desc:'每招募1名', unit:20},
+    {id:'f4', name:'临时招募四星干员', desc:'每招募1名', unit:10},
+  ],
+  relics: [
+    {id:'fr1', name:'三藏品通关', desc:'同时携带【击坠“神明】、【湮没“光明】、【焚毁“文明】通关', n15:400, below:300},
+    {id:'fr2', name:'“失与得”换【焚毁“文明】', desc:'进入第五层前换取', n15:200, below:150},
+    {id:'fr3', name:'通关“无效验尸”', desc:'进入第五层前通关', n15:150, below:100},
+  ],
+  levels: [
+    {id:'fl1', name:'通关“赤金厄运”', n15:220, below:170},
+    {id:'fl2', name:'通关“哀悼铁腕”', n15:160, below:110},
+    {id:'fl3', name:'通关“冰冷流亡”', n15:80, below:60},
+    {id:'fl4', name:'通关“混沌源阶理论”', n15:240, below:190},
+    {id:'fl5', name:'全探索“混沌源阶理论”', desc:'携带双沙盘探索完命运所指后通关', n15:300, below:250},
+    {id:'fl6', name:'通关“痛苦将息”', n15:280, below:230},
+    {id:'fl7', name:'通关“畸症”', n15:450, below:400},
+    {id:'fl8', name:'击杀“玻利瓦尔·症结之核”', n15:100, below:80},
+    {id:'fl9', name:'追猎状态进入“畸症”', n15:50, below:30},
+    {id:'fl10', name:'通关“闹乐”', desc:'仅不期而遇触发', n15:100, below:80},
+    {id:'fl11', name:'通关“灭身”', desc:'仅不期而遇触发', n15:120, below:100},
+    {id:'fl12', name:'通关“纵怒”', desc:'仅不期而遇触发', n15:140, below:120},
+    {id:'fl13', name:'通关紧急“合伙人会议”', desc:'仅不期而遇触发', n15:100, below:80},
+  ],
+  specialKill: [
+    {id:'fk', name:'击杀特殊敌人', desc:'高普尼克 / 鸭爵 / 圆仔 / 流泪小子，每个', unit:20},
+  ],
+  rules: [
+    {id:'fr1_', name:'未携带机械师通关', check:400},
+    {id:'fr2_', name:'追猎加分', desc:'每次（血色空脉/卡德霍之颅/源流交汇处等层除外）', unit:50},
+    {id:'fr3_', name:'全层追猎额外加分', desc:'除上述三层外全层追猎', check:100},
+    {id:'fr4_', name:'板藤扣分', desc:'估价上涨后售出，每源石锭', unit:-40},
+    {id:'fr5_', name:'未提交指定藏品加分', desc:'未在“命运所指”提交【击坠“神明】【湮没“光明】【焚毁“文明】【源私钥】', check:200},
+    {id:'fr6_', name:'非本家六星超额扣分', desc:'总和超过4个，每多1个', unit:-50},
+    {id:'fr7_', name:'非本家六星不足加分', desc:'总和少于4个，每少1个', unit:50},
+    {id:'fr8_', name:'交换“探测先锋”扣分', desc:'在“失与得”交换【探测先锋】', check:-100},
+    {id:'fr9_', name:'商店超支扣分', desc:'超出部分每源石锭扣10倍分', unit:-10},
+  ],
+};
+
+const FUN = {
+  base: null,
+  operators: [
+    {id:'u6', name:'临时招募六星干员', desc:'每招募1名', unit:50},
+    {id:'u5', name:'临时招募五星干员', desc:'每招募1名', unit:20},
+    {id:'u4', name:'临时招募四星干员', desc:'每招募1名', unit:10},
+    {id:'u_cook', name:'厨力干员通关', desc:'报名厨力干员开局使用并通关', check:150},
+    {id:'u_zl', name:'【指中狼】通关', desc:'携带指中狼在最终关卡通关', check:50},
+    {id:'u_combo', name:'干员组合羁绊', desc:'指定组合干员通关，每个组合', unit:100},
+    {id:'u_band', name:'乐队羁绊', desc:'凑齐mujica全员或5个持乐器干员上场通关', check:300},
+    {id:'u_rand', name:'随机六星挑战', desc:'每随机一次', unit:30},
+    {id:'u_randall', name:'全程随机通关', desc:'全程使用随机干员并通关', check:200},
+  ],
+  relics: [
+    {id:'ur1', name:'同时持有【果腹】和【复得之轮】', check:50},
+    {id:'ur2', name:'结算超过160藏', check:50},
+    {id:'ur3', name:'集齐指定藏品组合', desc:'【阿猛】【天师锦囊】【冰与火】【河谷祭祀】', check:150},
+    {id:'ur4', name:'炎佑击杀最终boss', desc:'由召唤出的“炎佑”击杀', check:300},
+    {id:'ur5', name:'结算得分含指定数字', desc:'含连续799/325或其整数倍', check:100},
+    {id:'ur6', name:'浪花估价加分', desc:'最终关卡时每有1个浪花估价为0或超30块', unit:50},
+    {id:'ur7', name:'清除实托邦', desc:'“文明开化分队”每碰到1个实托邦并清除理想源', unit:50},
+    {id:'ur8', name:'未碰到实托邦', desc:'“文明开化分队”全程未碰到实托邦', check:300},
+    {id:'ur9', name:'诡意行商吸满', desc:'“多边贸易分队”每个诡意行商吸满12源石锭', unit:50},
+    {id:'ur10', name:'锈蚀铁锤吸满', desc:'持有【锈蚀的铁锤】时每个诡意行商吸满', unit:100},
+    {id:'ur11', name:'损坏霜晶树', desc:'战斗后每损坏一颗', unit:50},
+    {id:'ur12', name:'玉米晓夫', desc:'单局获得8个及以上玉米', check:100},
+  ],
+  levels: [
+    {id:'ul1', name:'通关“赤金厄运”', check:200},
+    {id:'ul2', name:'通关“哀悼铁腕”', check:160},
+    {id:'ul3', name:'通关“冰冷流亡”', check:80},
+    {id:'ul4', name:'通关“混沌源阶理论”', check:250},
+    {id:'ul5', name:'全探索“混沌源阶理论”', desc:'探索完命运所指后通关', check:500},
+    {id:'ul6', name:'通关“痛苦将息”', check:260},
+    {id:'ul7', name:'通关“畸症”', check:450},
+    {id:'ul8', name:'击杀“玻利瓦尔·症结之核”', check:100},
+    {id:'ul9', name:'追猎状态进入“畸症”', check:50},
+    {id:'ul10', name:'通关“闹乐”', desc:'仅不期而遇触发', check:100},
+    {id:'ul11', name:'通关“灭身”', desc:'仅不期而遇触发', check:120},
+    {id:'ul12', name:'通关“纵怒”', desc:'仅不期而遇触发', check:140},
+    {id:'ul13', name:'通关紧急“合伙人会议”', desc:'仅不期而遇触发', check:100},
+    {id:'ul14', name:'超过指定作战数', desc:'“地址调查分队”超10紧急+15普通作战', check:250},
+    {id:'ul15', name:'藏品超120', desc:'“地址调查分队”结算藏品超120', check:50},
+  ],
+  specialKill: [
+    {id:'uk', name:'击杀特殊敌人', desc:'高普尼克 / 鸭爵 / 圆仔 / 流泪小子，每个', unit:20},
+  ],
+};
+
+// ===== 渲染 =====
+function baseSectionHTML(){
+  let h = '';
+  if(MODE === 'formal'){
+    h += `
+      <h2>基础信息</h2>
+      <div class="field">
+        <div class="fname">选手名称</div>
+        <input type="text" id="playerName" placeholder="（选填）">
+      </div>
+      <div class="field">
+        <div class="fname">结算分<small>通关结算界面的总分</small></div>
+        <input type="number" id="settleScore" value="" placeholder="0" oninput="compute()">
+      </div>
+      <div class="field">
+        <div class="fname">零件箱得分<small>= 零件箱数量 × 7.5</small></div>
+        <input type="number" id="partsScore" value="" placeholder="0" oninput="compute()">
+      </div>
+      <div class="field">
+        <div class="fname">零件箱数量<small>填了自动算零件箱得分</small></div>
+        <input type="number" id="partsCount" value="" placeholder="0" oninput="syncParts()">
+      </div>
+      <div class="field">
+        <div class="fname">选取难度<small>决定难度加分与关卡分值</small></div>
+        <select id="difficulty" onchange="onDifficulty()">
+          <option value="0" data-n15="0">N6~N9（0分）</option>
+          <option value="30" data-n15="0">N10（+30）</option>
+          <option value="60" data-n15="0">N11（+60）</option>
+          <option value="90" data-n15="0">N12（+90）</option>
+          <option value="140" data-n15="0">N13（+140）</option>
+          <option value="190" data-n15="0">N14（+190）</option>
+          <option value="290" data-n15="1" selected>N15（+290）</option>
+        </select>
+      </div>
+      <div class="field">
+        <div class="fname">通关时长（分钟）<small>自动算时长加减分</small></div>
+        <input type="number" id="duration" value="" placeholder="0" oninput="compute()">
+      </div>
+      <div class="base-result" id="baseResult"></div>
+      <div class="time-note" id="timeNote"></div>
+    `;
+  } else {
+    h += `
+      <h2>基础信息</h2>
+      <div class="field">
+        <div class="fname">选手名称</div>
+        <input type="text" id="playerName" placeholder="（选填）">
+      </div>
+      <div class="field">
+        <div class="fname">结算分<small>通关结算界面的总分</small></div>
+        <input type="number" id="settleScore" value="" placeholder="0" oninput="compute()">
+      </div>
+      <div class="field">
+        <div class="fname">零件箱得分<small>= 零件箱数量 × 7.5</small></div>
+        <input type="number" id="partsScore" value="" placeholder="0" oninput="compute()">
+      </div>
+      <div class="field">
+        <div class="fname">零件箱数量<small>填了自动算零件箱得分</small></div>
+        <input type="number" id="partsCount" value="" placeholder="0" oninput="syncParts()">
+      </div>
+      <div class="field">
+        <div class="fname">难度加分<small>统一按N15规则</small></div>
+        <input type="number" value="290" disabled style="background:#2c3a55;color:#9aa7bf;">
+      </div>
+      <div class="base-result" id="baseResult"></div>
+    `;
+  }
+  return h;
+}
+
+function syncParts(){
+  const cnt = parseFloat(document.getElementById('partsCount').value);
+  const ps = document.getElementById('partsScore');
+  if(!isNaN(cnt) && cnt > 0){
+    ps.value = Math.round(cnt * 7.5 * 10) / 10;
+  }
+  compute();
+}
+
+function checkRow(it, pts){
+  const neg = pts < 0;
+  return `
+    <label class="item">
+      <input type="checkbox" data-id="${it.id}" data-type="check" data-points="${pts}" onchange="compute()">
+      <div class="info">
+        <div class="iname">${it.name}${neg?'<span class="deduct">扣分</span>':''}</div>
+        ${it.desc?`<div class="idesc">${it.desc}</div>`:''}
+      </div>
+      <div class="pts ${neg?'neg':''}">${neg?'':''}${pts>0?'+':''}${pts}</div>
+    </label>`;
+}
+
+function numRow(it){
+  const neg = it.unit < 0;
+  return `
+    <div class="item">
+      <div class="info">
+        <div class="iname">${it.name}${neg?'<span class="deduct">扣分</span>':''}</div>
+        ${it.desc?`<div class="idesc">${it.desc}</div>`:''}
+      </div>
+      <div class="stepper">
+        <button onclick="step('${it.id}',-1)">−</button>
+        <input type="number" id="in_${it.id}" data-id="${it.id}" data-type="num" data-unit="${it.unit}" value="0" min="0" oninput="compute()">
+        <button onclick="step('${it.id}',1)">＋</button>
+        <span class="unit">×${it.unit}</span>
+      </div>
+    </div>`;
+}
+
+function step(id, d){
+  const el = document.getElementById('in_'+id);
+  let v = parseInt(el.value) || 0;
+  v = Math.max(0, v + d);
+  el.value = v;
+  compute();
+}
+
+function isN15(){
+  const sel = document.getElementById('difficulty');
+  return sel && sel.selectedOptions[0].dataset.n15 === '1';
+}
+
+function section(title, itemsHTML){
+  return `<section class="card"><h2>${title}</h2>${itemsHTML}</section>`;
+}
+
+function renderItems(){
+  const wrap = document.getElementById('items');
+  if(MODE === 'formal'){
+    const n15 = isN15();
+    const pk = (it) => (n15 ? it.n15 : it.below);
+    let h = '';
+    h += section('干员加分', FORMAL.operators.map(numRow).join(''));
+    h += section('藏品与路线加分', FORMAL.relics.map(it=>checkRow(it, pk(it))).join(''));
+    h += section('关卡通关加分', FORMAL.levels.map(it=>checkRow(it, pk(it))).join(''));
+    h += section('特殊击杀加分', FORMAL.specialKill.map(numRow).join(''));
+    h += section('规则加减分', FORMAL.rules.map(it=> it.check!==undefined ? checkRow(it, it.check) : numRow(it)).join(''));
+    wrap.innerHTML = h;
+  } else {
+    let h = '';
+    h += section('干员加分', FUN.operators.map(it=> it.check!==undefined ? checkRow(it, it.check) : numRow(it)).join(''));
+    h += section('藏品与路线加分', FUN.relics.map(it=> it.check!==undefined ? checkRow(it, it.check) : numRow(it)).join(''));
+    h += section('关卡通关加分', FUN.levels.map(it=> checkRow(it, it.check)).join(''));
+    h += section('特殊击杀加分', FUN.specialKill.map(numRow).join(''));
+    wrap.innerHTML = h;
+  }
+  applyDiffPoints();
+}
+
+function applyDiffPoints(){
+  if(MODE !== 'formal') return;
+  const n15 = isN15();
+  const map = {};
+  FORMAL.relics.forEach(it=>{ map[it.id] = n15?it.n15:it.below; });
+  FORMAL.levels.forEach(it=>{ map[it.id] = n15?it.n15:it.below; });
+  document.querySelectorAll('#items [data-type=check]').forEach(el=>{
+    const id = el.dataset.id;
+    if(map[id] !== undefined){
+      el.dataset.points = map[id];
+      const neg = map[id] < 0;
+      const ptsEl = el.closest('.item').querySelector('.pts');
+      ptsEl.textContent = (map[id]>0?'+':'')+map[id];
+      ptsEl.className = 'pts '+(neg?'neg':'');
+    }
+  });
+}
+
+// ===== 计算 =====
+function baseScore(){
+  const s = parseFloat(document.getElementById('settleScore')?.value);
+  const p = parseFloat(document.getElementById('partsScore')?.value);
+  if(isNaN(s) || isNaN(p)) return {ok:false, val:0, s:isNaN(s)?0:s, p:isNaN(p)?0:p};
+  return {ok:true, val:(s - p)/2, s:s, p:p};
+}
+
+function timeScore(){
+  if(MODE !== 'formal') return {val:0, note:''};
+  const d = parseFloat(document.getElementById('duration')?.value);
+  if(isNaN(d)) return {val:0, note:'（未填时长）'};
+  let val = 0, note = '';
+  if(d <= 150){ val = 50; note = `≤2小时30分 → <b>+50</b>`; }
+  else if(d > 210){
+    const over = Math.ceil(d - 210);
+    val = -10 * over;
+    note = `>3小时30分，超出${over}分钟 → <b>${val}</b>`;
+  } else {
+    note = '时长在2.5h~3.5h之间，无加减分';
+  }
+  return {val, note};
+}
+
+function difficultyBonus(){
+  if(MODE === 'fun') return 290;
+  const sel = document.getElementById('difficulty');
+  return sel ? parseFloat(sel.value) || 0 : 0;
+}
+
+function compute(){
+  const items = document.querySelectorAll('#items [data-id]');
+  let sum = 0;
+  items.forEach(el=>{
+    if(el.dataset.type === 'check'){
+      if(el.checked) sum += parseFloat(el.dataset.points) || 0;
+    } else {
+      const v = parseFloat(el.value) || 0;
+      sum += v * (parseFloat(el.dataset.unit) || 0);
+    }
+  });
+
+  const bs = baseScore();
+  const ts = timeScore();
+  sum += (bs.ok ? bs.val : 0);
+  sum += ts.val;
+  sum += difficultyBonus();
+
+  document.getElementById('totalScore').textContent = fmt(sum);
+
+  // base result display
+  const br = document.getElementById('baseResult');
+  if(br){
+    const baseVal = bs.ok ? bs.val : 0;
+    br.innerHTML = `基础通关得分 =（结算分 ${bs.s} − 零件箱得分 ${bs.p}）÷ 2 = <span class="big">${fmt(baseVal)}</span> 分`;
+  }
+  const tn = document.getElementById('timeNote');
+  if(tn) tn.innerHTML = ts.note;
+  return sum;
+}
+
+function fmt(n){
+  n = Math.round(n * 100) / 100;
+  return (Number.isInteger(n) ? n : n.toFixed(1)).toString();
+}
+
+// ===== 模式切换 =====
+function switchMode(mode){
+  MODE = mode;
+  document.getElementById('tabFormal').classList.toggle('active', mode==='formal');
+  document.getElementById('tabFun').classList.toggle('active', mode==='fun');
+  document.getElementById('baseSection').innerHTML = baseSectionHTML();
+  renderItems();
+  compute();
+}
+
+// ===== 难度切换 =====
+function onDifficulty(){
+  applyDiffPoints();
+  compute();
+}
+
+// ===== 重置 =====
+function resetAll(){
+  switchMode(MODE);
+}
+
+// ===== 复制结果 =====
+function collectBreakdown(){
+  const name = document.getElementById('playerName')?.value.trim() || '未填姓名';
+  const mode = MODE === 'formal' ? '正式模式' : '娱乐模式';
+  const lines = [`【昨夜圆车杯 #1】${mode} - ${name}`];
+
+  const bs = baseScore();
+  lines.push(`基础通关得分：${bs.ok ? fmt(bs.val) : 0}`);
+  if(MODE==='formal'){
+    const d = document.getElementById('difficulty');
+    lines.push(`难度加分：${difficultyBonus()}（${d.selectedOptions[0].text}）`);
+  } else {
+    lines.push(`难度加分：290（统一N15）`);
+  }
+
+  document.querySelectorAll('#items [data-id]').forEach(el=>{
+    let got = 0, label = '';
+    const info = el.closest('.item')?.querySelector('.iname')?.textContent || '';
+    if(el.dataset.type === 'check'){
+      if(el.checked){ got = parseFloat(el.dataset.points)||0; label = info; }
+    } else {
+      const v = parseFloat(el.value)||0;
+      if(v>0){ got = v * (parseFloat(el.dataset.unit)||0); label = info + ' ×' + v; }
+    }
+    if(got !== 0) lines.push(`${label}：${got>0?'+':''}${got}`);
+  });
+
+  const ts = timeScore();
+  if(ts.val !== 0) lines.push(`时长加减分：${ts.val>0?'+':''}${ts.val}`);
+
+  const total = compute();
+  lines.push(`—— 总分：${fmt(total)} ——`);
+  return lines.join('\n');
+}
+
+function copyResult(){
+  const text = collectBreakdown();
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>alert('已复制到剪贴板')).catch(()=>fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); alert('已复制到剪贴板'); }catch(e){ alert(text); }
+  document.body.removeChild(ta);
+}
+
+// 初始化
+switchMode('formal');
+</script>
+</body>
+</html>
