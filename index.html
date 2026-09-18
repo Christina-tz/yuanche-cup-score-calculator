@@ -374,19 +374,22 @@ function renderItems(){
   if(MODE === 'formal'){
     const n15 = isN15();
     const pk = (it) => (n15 ? it.n15 : it.below);
+    const D = FORMAL;
+    const nums = [...D.operators, ...D.specialKill, ...D.rules.filter(it=>it.unit!==undefined)];
     let h = '';
-    h += section('干员加分', FORMAL.operators.map(numRow).join(''));
-    h += section('藏品与路线加分', FORMAL.relics.map(it=>checkRow(it, pk(it))).join(''));
-    h += section('关卡通关加分', FORMAL.levels.map(it=>checkRow(it, pk(it))).join(''));
-    h += section('特殊击杀加分', FORMAL.specialKill.map(numRow).join(''));
-    h += section('规则加减分', FORMAL.rules.map(it=> it.check!==undefined ? checkRow(it, it.check) : numRow(it)).join(''));
+    h += section('数量加分（点 ＋/−）', nums.map(numRow).join(''));
+    h += section('藏品与路线加分', D.relics.map(it=>checkRow(it, pk(it))).join(''));
+    h += section('关卡通关加分', D.levels.map(it=>checkRow(it, pk(it))).join(''));
+    h += section('规则加减分', D.rules.filter(it=>it.check!==undefined).map(it=>checkRow(it, it.check)).join(''));
     wrap.innerHTML = h;
   } else {
+    const D = FUN;
+    const nums = [...D.operators.filter(it=>it.unit!==undefined), ...D.relics.filter(it=>it.unit!==undefined), ...D.specialKill];
     let h = '';
-    h += section('干员加分', FUN.operators.map(it=> it.check!==undefined ? checkRow(it, it.check) : numRow(it)).join(''));
-    h += section('藏品与路线加分', FUN.relics.map(it=> it.check!==undefined ? checkRow(it, it.check) : numRow(it)).join(''));
-    h += section('关卡通关加分', FUN.levels.map(it=> checkRow(it, it.check)).join(''));
-    h += section('特殊击杀加分', FUN.specialKill.map(numRow).join(''));
+    h += section('数量加分（点 ＋/−）', nums.map(numRow).join(''));
+    h += section('干员加分', D.operators.filter(it=>it.check!==undefined).map(it=>checkRow(it, it.check)).join(''));
+    h += section('藏品与路线加分', D.relics.filter(it=>it.check!==undefined).map(it=>checkRow(it, it.check)).join(''));
+    h += section('关卡通关加分', D.levels.map(it=>checkRow(it, it.check)).join(''));
     wrap.innerHTML = h;
   }
   applyDiffPoints();
