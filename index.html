@@ -106,6 +106,8 @@
   .btn-copy{background:var(--acc2); color:#fff;}
   .btn-reset{background:var(--card2); color:var(--sub); border:1px solid var(--line)!important;}
 
+  .group-label{font-size:12px; color:var(--sub); margin:12px 0 2px; padding:3px 10px; background:var(--card2); border-radius:6px; display:inline-block;}
+  .item input[type=radio]{width:20px; height:20px; accent-color:var(--acc2); flex-shrink:0; cursor:pointer;}
   .hint{font-size:12px; color:var(--sub); text-align:center; margin-top:8px;}
 </style>
 </head>
@@ -141,6 +143,18 @@
 
 <script>
 let MODE = 'formal';
+
+// 关卡通关分组（三选一，互斥）
+const FORMAL_LEVEL_GROUPS = [
+  ['fl1','fl2','fl3'],
+  ['fl4','fl5','fl6'],
+  ['fl10','fl11','fl12'],
+];
+const FUN_LEVEL_GROUPS = [
+  ['ul1','ul2','ul3'],
+  ['ul4','ul5','ul6'],
+  ['ul10','ul11','ul12'],
+];
 
 // ===== 计分项数据 =====
 const FORMAL = {
@@ -369,6 +383,39 @@ function section(title, itemsHTML){
   return `<section class="card"><h2>${title}</h2>${itemsHTML}</section>`;
 }
 
+function radioGroup(name, items, getPoints){
+  let h = `<label class="item"><input type="radio" name="${name}" value="" data-type="radio" data-points="0" checked onchange="compute()"><div class="info"><div class="iname">未选择（0分）</div></div><div class="pts">0</div></label>`;
+  items.forEach(it=>{
+    const pts = getPoints(it);
+    const neg = pts < 0;
+    h += `
+    <label class="item">
+      <input type="radio" name="${name}" value="${it.id}" data-type="radio" data-points="${pts}" onchange="compute()">
+      <div class="info">
+        <div class="iname">${it.name}</div>
+        ${it.desc?`<div class="idesc">${it.desc}</div>`:''}
+      </div>
+      <div class="pts ${neg?'neg':''}">${pts>0?'+':''}${pts}</div>
+    </label>`;
+  });
+  return h;
+}
+
+function renderLevels(levels, groups, getPoints){
+  let h = '';
+  const grouped = new Set(groups.flat());
+  groups.forEach((g, i)=>{
+    const items = g.map(id=>levels.find(it=>it.id===id)).filter(Boolean);
+    if(items.length){
+      h += `<div class="group-label">三选一 · 只能选其中一项</div>`;
+      h += radioGroup('grp_'+MODE+'_'+i, items, getPoints);
+    }
+  });
+  const standalone = levels.filter(it=>!grouped.has(it.id));
+  h += standalone.map(it=>checkRow(it, getPoints(it))).join('');
+  return h;
+}
+
 function renderItems(){
   const wrap = document.getElementById('items');
   if(MODE === 'formal'){
@@ -379,7 +426,7 @@ function renderItems(){
     let h = '';
     h += section('数量加分（点 ＋/−）', nums.map(numRow).join(''));
     h += section('藏品与路线加分', D.relics.map(it=>checkRow(it, pk(it))).join(''));
-    h += section('关卡通关加分', D.levels.map(it=>checkRow(it, pk(it))).join(''));
+    h += section('关卡通关加分', renderLevels(D.levels, FORMAL_LEVEL_GROUPS, pk));
     h += section('规则加减分', D.rules.filter(it=>it.check!==undefined).map(it=>checkRow(it, it.check)).join(''));
     wrap.innerHTML = h;
   } else {
@@ -389,7 +436,7 @@ function renderItems(){
     h += section('数量加分（点 ＋/−）', nums.map(numRow).join(''));
     h += section('干员加分', D.operators.filter(it=>it.check!==undefined).map(it=>checkRow(it, it.check)).join(''));
     h += section('藏品与路线加分', D.relics.filter(it=>it.check!==undefined).map(it=>checkRow(it, it.check)).join(''));
-    h += section('关卡通关加分', D.levels.map(it=>checkRow(it, it.check)).join(''));
+    h += section('关卡通关加分', renderLevels(D.levels, FUN_LEVEL_GROUPS, it=>it.check));
     wrap.innerHTML = h;
   }
   applyDiffPoints();
@@ -401,8 +448,7 @@ function applyDiffPoints(){
   const map = {};
   FORMAL.relics.forEach(it=>{ map[it.id] = n15?it.n15:it.below; });
   FORMAL.levels.forEach(it=>{ map[it.id] = n15?it.n15:it.below; });
-  document.querySelectorAll('#items [data-type=check]').forEach(el=>{
-    const id = el.dataset.id;
+  const update = (el, id) => {
     if(map[id] !== undefined){
       el.dataset.points = map[id];
       const neg = map[id] < 0;
@@ -410,7 +456,9 @@ function applyDiffPoints(){
       ptsEl.textContent = (map[id]>0?'+':'')+map[id];
       ptsEl.className = 'pts '+(neg?'neg':'');
     }
-  });
+  };
+  document.querySelectorAll('#items [data-type=check]').forEach(el=>update(el, el.dataset.id));
+  document.querySelectorAll('#items [data-type=radio]').forEach(el=>update(el, el.value));
 }
 
 // ===== 计算 =====
@@ -470,6 +518,10 @@ function compute(){
       const v = parseFloat(el.value) || 0;
       sum += v * (parseFloat(el.dataset.unit) || 0);
     }
+  });
+
+  document.querySelectorAll('#items [data-type=radio]:checked').forEach(el=>{
+    sum += parseFloat(el.dataset.points) || 0;
   });
 
   const bs = baseScore();
@@ -546,6 +598,14 @@ function collectBreakdown(){
       if(v>0){ got = v * (parseFloat(el.dataset.unit)||0); label = info + ' ×' + v; }
     }
     if(got !== 0) lines.push(`${label}：${got>0?'+':''}${got}`);
+  });
+
+  document.querySelectorAll('#items [data-type=radio]:checked').forEach(el=>{
+    const pts = parseFloat(el.dataset.points)||0;
+    if(pts !== 0){
+      const info = el.closest('.item')?.querySelector('.iname')?.textContent || '';
+      lines.push(`${info}：${pts>0?'+':''}${pts}`);
+    }
   });
 
   const ts = timeScore();
